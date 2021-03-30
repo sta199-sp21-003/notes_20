@@ -1,0 +1,491 @@
+---
+title: "Linear regression - multiple regression"
+author: ""
+date: ""
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      comment = "#>", highlight = TRUE,
+                      fig.align = "center")
+```
+
+## Main ideas
+
+- Review and expand upon concepts from our first two regression classes
+
+- Learn how to carry out and interpret multiple linear regression
+
+- Learn how to assess the conditions for inference in regression
+
+## Packages
+
+```{r packages}
+library(tidyverse)
+library(broom)
+library(car)
+```
+
+The `car` (companion to applied regression) package will be used to calculate 
+variance inflation factors (VIFs) to examine whether our models have 
+multicollinearity.
+
+## Recall
+
+### Regression terminology
+
+- **Response variable**: variable whose behavior or variation you are trying to 
+  understand, on the y-axis. Also called the dependent variable.
+
+- **Explanatory variable(s)**: variables that you want to use to explain the 
+  variation in the response, on the x-axis. Also called independent variables, 
+  predictors, or features.
+
+- **Predicted value**: a value that is output from a model given a set of 
+  inputs.
+  - The model function gives the typical value of the response variable while
+    conditioning on the explanatory variables (what does this mean?)
+
+- **Residuals**: the difference for each case and its predicted value
+  - Residual = Observed value - Predicted value
+  - Tells how far above/below the model function each case is
+  
+### Simple linear regression
+
+We're interested in the $\beta_0$ (population parameter for the intercept)
+and the $\beta_1$ (population parameter for the slope) in the following model:
+
+$$ {y} = \beta_0 + \beta_1x + \epsilon $$
+
+Unfortunately, we can't get these values. So, we use sample statistics to 
+estimate them:
+
+$$ \hat{y} = b_0 + b_1x $$
+
+The regression line minimizes the sum of squared residuals.
+
+- **Residuals**: $e_i = y_i - \hat{y}_i$,
+
+- The regression line minimizes $\sum_{i = 1}^n e_i^2$.
+
+- Equivalently, minimizing $\sum_{i = 1}^n [y_i - (b_0 + b_1x_i)]^2$
+
+## Data
+
+```{r load_data}
+sports_car_prices <- read_csv("data/sports_cars.csv")
+```
+
+File `data/sports_cars.csv` contains prices for Porsche and Jaguar cars for sale
+on cars.com.
+
+`car`: car make (Jaguar or Porsche)
+`price`: price in USD
+`age`: age of the car in years
+`mileage`: previous miles driven
+
+# Notes
+
+## Simple linear regression
+
+Consider `age` as a single predictor for `price`:
+
+```{r price_v_age}
+sports_car_prices %>% 
+  ggplot(aes(x = age, y = price)) +
+  geom_point() +
+  labs(x = "Age (years)", y = "Price (USD)") +
+  theme_minimal()
+```
+
+Is there anything concerning?
+
+```{r price_model}
+price_model <- lm(price ~ age, data = sports_car_prices)
+tidy(price_model)
+```
+
+Is age the only variable that predicts price?
+
+## Multiple linear regression
+
+Population model:
+
+$$\hat{y} = \beta_0 + \beta_1~x_1 + \beta_2~x_2 + \cdots + \beta_k~x_k +\epsilon$$
+
+Sample model that we use to estimate the population model:
+  
+$$\hat{y} = b_0 + b_1~x_1 + b_2~x_2 + \cdots + b_k~x_k$$
+
+Does the relationship between price and age depend on type of car?
+
+```{r price_v_age_make}
+ggplot(sports_car_prices, aes(x = age, y = price, color = car)) + 
+  geom_point() +
+  labs(x = "Age (years)", y = "Price (USD)", color = "Car Make") +
+  theme_minimal()
+```
+
+To add additional variables in our model fit, use `+` in your formula for 
+`lm()`.
+
+```{r mr_1}
+
+```
+
+Fitted model:
+
+$$ \widehat{price} = 44310 - 2487~age + 21648~carPorsche $$
+
+
+- Plug in 0 for `carPorsche` to get the linear model for Jaguars.
+- Plug in 1 for `carPorsche` to get the linear model for Porsches.
+
+- Jaguar: 
+$$\begin{align}\widehat{price} &= 44310 - 2487~age + 21648 \times 0\\
+&= 44310 - 2487~age\\\end{align}$$
+
+- Porsche: 
+$$\begin{align}\widehat{price} &= 44310 - 2487~age + 21648 \times 1\\
+&= 65958 - 2487~age\\\end{align}$$
+
+
+- Rate of change in price as the age of the car increases does not depend 
+  on make of car (same slopes)
+  
+- Porsches are consistently more expensive than Jaguars (different intercepts)
+
+```{r price_v_age_make_lm}
+ggplot(sports_car_prices, aes(x = age, y = price, color = car)) + 
+  geom_point() +
+  geom_line(data = augment(mr_1), aes(x = age, y = .fitted, color = car)) +
+  labs(x = "Age (years)", y = "Price (USD)", color = "Car Make") +
+  theme_minimal()
+```
+
+### Interpretation of main effects
+
+```{r mr_1_preview}
+tidy(mr_1)
+```
+
+- **All else held constant**, for each additional year of a car's age, the 
+  price of the car is predicted to decrease, on average, by $2,487.
+
+- **All else held constant**, Porsches are predicted, on average, to have a
+  price that is $21,648 greater than Jaguars.
+
+- Jaguars that have an age of 0 are predicted, on average, to have a price of 
+  $44,310.
+
+### Introduction to interaction effects
+
+```{r price_v_age_make_lm2}
+ggplot(sports_car_prices, aes(x = age, y = price, color = car)) + 
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE) +
+  labs(x = "Age (years)", y = "Price (USD)", color = "Car Make") +
+  theme_minimal()
+```
+
+Why is our linear regression model different from what we see above when
+using `geom_smooth(method = lm, se = FALSE)`?
+
+
+The model we specified assumes Jaguars and Porsches have the **same slope** 
+and **different intercepts**.
+
+- What is the most appropriate model for these data?
+
+  - same slope and intercept for Jaguars and Porsches?
+  - same slope and different intercept for Jaguars and Porsches?
+  - different slope and different intercept for Jaguars and Porsches?
+
+- Including an interaction effect in the model allows for different slopes, i.e. 
+  nonparallel lines.
+
+- This means that the relationship between an explanatory variable and the
+  response depends on another explanatory variable.
+
+- We can accomplish this by adding an **interaction variable**. This is the 
+  product of two explanatory variables (also sometimes called an interaction 
+  term).
+
+### Modeling with interaction effects
+
+```{r mr_2}
+
+```
+
+Alternatively, the formula object can be represented as follows.
+
+```{r mr_3}
+
+```
+
+$$\widehat{price} = 56988 - 5040~age + 6387~carPorsche + 2969~age \times carPorsche$$
+
+### Interpretation of interaction effects
+
+$$\widehat{price} = 56988 - 5040~age + 6387~carPorsche + 2969~age \times carPorsche$$
+
+- Plug in 0 for `carPorsche` to get the linear model for Jaguars.
+- Plug in 1 for `carPorsche` to get the linear model for Porsches.
+
+- Jaguar: 
+
+$$\begin{align}\widehat{price} &= 56988 - 5040~age + 6387~carPorsche + 2969~age \times carPorsche \\
+&= 56988 - 5040~age + 6387 \times 0 + 2969~age \times 0\\
+&= 56988 - 5040~age\end{align}$$
+
+- Porsche:
+
+
+$$\begin{align}\widehat{price} &= 56988 - 5040~age + 6387~carPorsche + 2969~age \times carPorsche \\
+&= 56988 - 5040~age + 6387 \times 1 + 2969~age \times 1\\
+&= 63375 - 2071~age\end{align}$$
+
+- Jaguar: 
+
+$$\widehat{price} = 56988 - 5040~age$$
+
+- Porsche: 
+
+$$\widehat{price} = 63375 - 2071~age$$
+
+- Rate of change in price as the age of the car increases depends on the make 
+  of the car (different slopes).
+
+- Porsches are consistently more expensive than Jaguars (different intercepts).
+
+### Other interactions
+
+Continuous by continuous interactions:
+
+- Interpretation becomes trickier
+
+- Slopes conditional on values of explanatory variables
+
+Third-order interactions:
+
+- It is best to avoid these if you want to interpret these interactions in 
+  context of the data.
+  
+- Intuitively, it is difficult to justify the need for third-order interactions.
+
+## Assessing quality of model fit: $R^2$ and adjusted $R^2$
+
+Let's obtain $R^2$ for our simple model with just age as an explanatory variable.
+
+```{r r2_price_model}
+glance(price_model) %>%
+  pull(r.squared)
+```
+
+Roughly 27% of the variability in price of used cars can be explained by age. 
+
+Consider $R^2$ for our other models.
+
+```{r r2_mr_1}
+glance(mr_1) %>% 
+  pull(r.squared)
+```
+
+```{r r2_mr_2}
+glance(mr_2) %>% 
+  pull(r.squared) 
+```
+
+- The model with both age and make has an $R^2$ of about 61% and the model 
+  with the interaction term has an even higher $R^2$.
+
+- Using $R^2$ for model selection in models with multiple explanatory 
+  variables is not a good idea as $R^2$ increases when **any** variable is 
+  added to the model.
+
+Recall:
+
+$$ R^2 =  1 - \left( \frac{ SS\_{Error} }{ SS\_{Total} } \right) $$
+
+where $SS_{Error}$ is the sum of squared residuals and $SS_{Total}$ is the total
+variance in the response variable.
+
+### Adjusted $R^2$
+
+$$ R^2\_{adj} = 1 - \left( \frac{ SS\_{Error} }{ SS\_{Total} } \times \frac{n - 1}{n - k - 1} \right), $$
+
+where $n$ is the number of observations and $k$ is the number of predictors in 
+the model.
+
+- Adjusted $R^2$ doesn't increase if the new variable does not provide any new
+  information or is completely unrelated and can even decrease.
+
+- This makes adjusted $R^2$ a preferable metric for model selection in multiple
+  regression models.
+
+Let's get the adjusted $R^2$
+
+```{r ar2_mr_1}
+glance(mr_1) %>% 
+  select(r.squared, adj.r.squared)
+```
+
+```{r ar2_mr_2}
+glance(mr_2) %>% 
+  select(r.squared, adj.r.squared) 
+```
+
+## Regression diagnostics & conditions for inference
+
+### Conditions
+
+- **L**inearity: The relationship between response and predictor(s) is linear
+- **I**ndependence: The residuals are independent
+- **N**ormality: The residuals are nearly normally distributed
+- **E**qual Variance: The residuals have constant variance
+
+- For multiple regression, the predictors shouldn't be too correlated with 
+  each other. 
+
+Let's create some diagnostic plots to evaluate these assumptions for
+model `mr_1`.
+
+```{r get_residuals_augment}
+mr_1_aug <- augment(mr_1)
+```
+
+### Independence check
+
+```{r independence_check}
+ggplot(mr_1_aug, aes(x = seq(nrow(mr_1_aug)), y = .resid)) + 
+  geom_point() + 
+  labs(x = "Index", y = "Residual value") +
+  theme_minimal()
+```
+
+### Equal Variance and linearity check
+
+```{r equal_var_linearity_check}
+ggplot(mr_1_aug, mapping = aes(x = .fitted, y = .resid)) +
+  geom_point() + 
+  geom_hline(yintercept = 0, color = "red", lty = 2) +
+  labs(x = "Predicted Price", y = "Residual value") +
+  theme_minimal()
+```
+
+### Normality check
+
+Histogram:
+
+```{r normality_check_1}
+ggplot(mr_1_aug, mapping = aes(x = .resid)) +
+  geom_histogram(binwidth = 6000, fill = "pink", color = "grey90") + 
+  labs(x = "Residuals", y = "Count") +
+  theme_minimal()
+```
+
+Q-Q plot:
+
+```{r normality_check_2}
+ggplot(mr_1_aug, mapping = aes(sample = .resid)) +
+  stat_qq() + 
+  stat_qq_line() +
+  theme_minimal()
+```
+
+### Multicollinearity
+
+We don't want the predictors to be too correlated with each other in a multiple 
+regression model. When they are correlated with each other, you have 
+**mutlicollinearity**. One way to diagnose multicollinearity is with 
+**variance inflation factors.** There's no specific cutoff, but a VIF of 10 is 
+sometimes used as a cutoff.
+
+Let's see if we have multicollinearity in our first model.
+
+```{r vif_mr_1}
+
+```
+
+Now, let's check it for the interaction model.
+
+```{r vif_mr_2}
+
+```
+
+Notice the VIFs here are higher. This is to be expected with an interactive 
+model. 
+
+**Question**: Why do you think VIFs will be higher in interactive models?
+
+## Practice
+
+1. Fit a multiple regression with both age and mileage as predictors. Are both 
+   of these statistically significant predictors of the price of a car?
+
+```{r mr_4}
+
+```
+
+2. Compute and interpret the adjusted $R^2$ for this model.
+
+```{r r2_mr_4}
+
+```
+
+3. Examine the extent to which there is multicollinearity in this model.
+
+```{r vif_mr_4}
+
+```
+
+Consider the dataset in `airquality.csv`. This file contains daily air 
+quality measurements in New York from May to September 1973 and collected by the 
+New York State Department of Conservation and the National Weather Service 
+(Chambers, J. M., Cleveland, W. S., Kleiner, B. and Tukey, P. A. (1983) 
+*Graphical Methods for Data Analysis*. Belmont, CA: Wadsworth).
+
+- `Ozone`: ozone (ppb)
+- `Solar.R`: solar radiation (langleys)
+- `Wind`: wind (mpg)
+- `Temp`: temperature (degrees F)
+
+```{r load_air_quality}
+air_quality <- read.csv("data/air_quality.csv")
+```
+
+4. Fit a model with ozone in parts per billion as the response variable and 
+   solar radiation, wind, and temperature as the explanatory variables.
+
+```{r mr_5}
+
+```
+
+5. Assess the model fit be examining the full set of diagnostic plots discussed
+   in these notes.
+   
+```{r mr_5_aug}
+
+```
+
+```{r mr_5_independence_check}
+
+```
+
+```{r mr_5_var_lin}
+
+```
+
+```{r mr_5_normality_1}
+
+```
+
+```{r mr_5_normality_2}
+
+```
+
+
+
